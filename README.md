@@ -43,11 +43,20 @@ Open the printed localhost URL. Full-year download buttons light up after GitHub
 
 | Piece | Where |
 | --- | --- |
-| UI | GitHub Pages (this repo) |
-| Large CSVs | GitHub Release `nse-daily-2026` |
+| UI | GitHub Pages after `scripts/deploy.ps1` |
+| Large CSVs | GitHub Release `nse-daily-2026`, also served from `/data/` on the static site |
 | Refresh | Action `Refresh NSE 2026 data` (weekdays 13:30 UTC / 19:00 IST, plus manual run) |
 
-After the first push, enable **Settings → Pages → GitHub Actions**, then run **Refresh NSE 2026 data** once so the Release assets exist.
+Publish (one-time GitHub login):
+
+```powershell
+& "$env:ProgramFiles\GitHub CLI\gh.exe" auth login --web
+powershell -File scripts/deploy.ps1
+```
+
+That creates the public repo `t5-nse-daily-data`, deploys Pages, and starts the CSV release workflow. Share `https://<your-github-user>.github.io/t5-nse-daily-data/` with Sandeep.
+
+Vercel alternative from `frontend/`: `npx vercel --prod` (set the project root to `frontend`).
 
 ## Data notes
 
