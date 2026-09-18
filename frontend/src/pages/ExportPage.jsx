@@ -36,7 +36,7 @@ export default function ExportPage() {
           GitHub Action release.
         </p>
       )}
-      {monthly.length > 0 && (
+      {repo && monthly.length > 0 && (
         <>
           <h3>By month</h3>
           <div className="month-grid">
