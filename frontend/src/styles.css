@@ -145,12 +145,42 @@ dt {
   margin-bottom: 16px;
 }
 
-input[type="search"] {
+input[type="search"],
+input[type="date"] {
   min-width: 240px;
   padding: 10px 12px;
   border: 1px solid var(--line);
   background: var(--paper);
   font: inherit;
+}
+
+.range-form {
+  display: grid;
+  gap: 16px;
+  max-width: 520px;
+  margin: 20px 0;
+}
+
+.range-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.presets button {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font: inherit;
+  padding: 8px 12px;
+  cursor: pointer;
 }
 
 .table-wrap {

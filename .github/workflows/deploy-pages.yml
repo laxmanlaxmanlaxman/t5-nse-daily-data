@@ -28,6 +28,7 @@ jobs:
         working-directory: frontend
         env:
           VITE_GITHUB_REPO: ${{ github.repository }}
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
         run: |
           npm ci
           npm run build

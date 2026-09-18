@@ -251,6 +251,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--delay", type=float, default=0.2)
     parser.add_argument("--cache-dir", type=Path, default=None)
+    parser.add_argument("--skip-frontend", action="store_true")
     return parser.parse_args(argv)
 
 
@@ -338,7 +339,7 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("No trading days downloaded. Check dates or NSE availability.")
 
     full = pd.concat(frames, ignore_index=True)
-    year = args.year
+    year = start.year
     full_path = out_dir / f"nse_daily_{year}.csv"
     latest_path = out_dir / f"nse_daily_{year}_latest.csv"
     write_csv(full_path, full)
@@ -382,7 +383,7 @@ def main(argv: list[str] | None = None) -> int:
     manifest_path = out_dir / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
-    if args.frontend_dir:
+    if args.frontend_dir and not args.skip_frontend:
         frontend_dir: Path = args.frontend_dir
         frontend_dir.mkdir(parents=True, exist_ok=True)
         write_csv(frontend_dir / latest_path.name, latest)

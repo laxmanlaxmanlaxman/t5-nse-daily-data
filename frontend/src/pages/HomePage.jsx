@@ -8,8 +8,9 @@ export default function HomePage() {
   return (
     <section>
       <p className="lede">
-        Daily open, high, low, close and volume for every NSE EQ stock in 2026,
-        joined with company name and listing date.
+        Daily open, high, low, close and volume for NSE EQ stocks. Preview the
+        latest session here, or pick any date range on Export and download a CSV
+        built on demand from official NSE bhavcopy files.
       </p>
       {loading && <p className="note">Loading snapshot…</p>}
       {error && <p className="error">{error}</p>}

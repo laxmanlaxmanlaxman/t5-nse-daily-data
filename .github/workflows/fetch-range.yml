@@ -1,0 +1,53 @@
+name: Fetch NSE date range
+
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: Start date YYYY-MM-DD
+        required: true
+      end:
+        description: End date YYYY-MM-DD
+        required: true
+      request_id:
+        description: Client request id
+        required: true
+
+run-name: "NSE range ${{ inputs.start }} to ${{ inputs.end }} ${{ inputs.request_id }}"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nse-on-demand
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+      - name: Fetch NSE range
+        run: python backend/nse_daily.py --start "${{ inputs.start }}" --end "${{ inputs.end }}" --out ./output --skip-frontend --delay 0.15
+      - name: Publish CSV
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          START="${{ inputs.start }}"
+          END="${{ inputs.end }}"
+          YEAR="${START:0:4}"
+          SRC="output/nse_daily_${YEAR}.csv"
+          DEST="nse_daily_${START}_to_${END}.csv"
+          cp "$SRC" "$DEST"
+          TAG=on-demand
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$DEST" --clobber
+          else
+            gh release create "$TAG" "$DEST" --title "NSE on-demand exports" --notes "CSVs generated when someone picks a date range on the site."
+          fi
