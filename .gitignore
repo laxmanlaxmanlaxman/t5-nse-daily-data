@@ -12,6 +12,7 @@ backend/.cache/
 node_modules/
 frontend/dist/
 frontend/.env.local
+worker/.wrangler/
 frontend/public/data/nse_daily_2026.csv
 frontend/public/data/nse_daily_2026_0*.csv
 frontend/public/data/nse_daily_2026_1*.csv
