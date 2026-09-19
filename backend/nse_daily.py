@@ -236,11 +236,46 @@ def write_csv(path: Path, frame: pd.DataFrame) -> None:
     frame.to_csv(path, index=False)
 
 
+def apply_output_filters(frame: pd.DataFrame, args: argparse.Namespace) -> pd.DataFrame:
+    out = frame.copy()
+    query = (args.query or "").strip().lower()
+    if query:
+        tokens = [tok for tok in query.replace(",", " ").split() if tok]
+        hay = (
+            out["Company"].astype(str).str.lower()
+            + " "
+            + out["Symbol"].astype(str).str.lower()
+        )
+        mask = False
+        for tok in tokens:
+            mask = mask | hay.str.contains(tok, regex=False)
+        out = out[mask]
+    if args.min_volume not in (None, ""):
+        out = out[pd.to_numeric(out["Volume"], errors="coerce") >= float(args.min_volume)]
+    if args.min_close not in (None, ""):
+        out = out[pd.to_numeric(out["Close"], errors="coerce") >= float(args.min_close)]
+    if args.max_close not in (None, ""):
+        out = out[pd.to_numeric(out["Close"], errors="coerce") <= float(args.max_close)]
+    listed = pd.to_datetime(out["Listing Date"], errors="coerce")
+    if args.listed_after:
+        out = out[listed.dt.normalize() >= pd.to_datetime(args.listed_after)]
+        listed = pd.to_datetime(out["Listing Date"], errors="coerce")
+    if args.listed_before:
+        out = out[listed.dt.normalize() <= pd.to_datetime(args.listed_before)]
+    return out.reset_index(drop=True)
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build NSE daily CSV files.")
     parser.add_argument("--year", type=int, default=date.today().year)
     parser.add_argument("--start", type=str, default=None, help="YYYY-MM-DD")
     parser.add_argument("--end", type=str, default=None, help="YYYY-MM-DD")
+    parser.add_argument("--query", type=str, default="", help="Company or symbol text")
+    parser.add_argument("--min-volume", dest="min_volume", default="")
+    parser.add_argument("--min-close", dest="min_close", default="")
+    parser.add_argument("--max-close", dest="max_close", default="")
+    parser.add_argument("--listed-after", dest="listed_after", default="")
+    parser.add_argument("--listed-before", dest="listed_before", default="")
     parser.add_argument("--series", type=str, default="EQ")
     parser.add_argument("--out", type=Path, default=Path("output"))
     parser.add_argument(
@@ -339,6 +374,9 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("No trading days downloaded. Check dates or NSE availability.")
 
     full = pd.concat(frames, ignore_index=True)
+    full = apply_output_filters(full, args)
+    if full.empty:
+        raise SystemExit("No rows left after filters.")
     year = start.year
     full_path = out_dir / f"nse_daily_{year}.csv"
     latest_path = out_dir / f"nse_daily_{year}_latest.csv"

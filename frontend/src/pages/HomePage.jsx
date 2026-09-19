@@ -8,9 +8,9 @@ export default function HomePage() {
   return (
     <section>
       <p className="lede">
-        Daily open, high, low, close and volume for NSE EQ stocks. Preview the
-        latest session here, or pick any date range on Export and download a CSV
-        built on demand from official NSE bhavcopy files.
+        Daily open, high, low, close and volume for NSE EQ stocks. Filter by
+        company or symbol, then pick any date range on Export. A background T6
+        job also collects the latest available 1-minute bars for every ticker.
       </p>
       {loading && <p className="note">Loading snapshot…</p>}
       {error && <p className="error">{error}</p>}
@@ -38,6 +38,9 @@ export default function HomePage() {
         </Link>
         <Link className="button secondary" to="/export">
           Export CSV
+        </Link>
+        <Link className="button secondary" to="/status">
+          T6 minute status
         </Link>
       </div>
       <p className="disclaimer">{manifest?.disclaimer}</p>

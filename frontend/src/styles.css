@@ -124,6 +124,8 @@ dt {
   text-decoration: none;
   padding: 10px 16px;
   border: 1px solid var(--accent);
+  font: inherit;
+  cursor: pointer;
 }
 
 .button.secondary {
@@ -146,26 +148,58 @@ dt {
 }
 
 input[type="search"],
-input[type="date"] {
-  min-width: 240px;
+input[type="date"],
+input[type="number"] {
+  min-width: 0;
+  width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--line);
   background: var(--paper);
   font: inherit;
 }
 
-.range-form {
+.filter-bar {
   display: grid;
-  gap: 16px;
-  max-width: 520px;
-  margin: 20px 0;
+  gap: 12px;
+  margin: 0 0 16px;
 }
 
+.filter-bar label,
 .range-form label {
   display: grid;
   gap: 6px;
   font-size: 13px;
   color: var(--muted);
+}
+
+.more-toggle {
+  justify-self: start;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font: inherit;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.extra-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  padding: 12px;
+  border: 1px dashed var(--line);
+  background: var(--paper);
+}
+
+.range-form {
+  display: grid;
+  gap: 16px;
+  max-width: 720px;
+  margin: 20px 0;
+}
+
+.section-gap {
+  margin-top: 40px;
 }
 
 .presets {

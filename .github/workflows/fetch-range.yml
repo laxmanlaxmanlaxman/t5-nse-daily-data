@@ -12,6 +12,30 @@ on:
       request_id:
         description: Client request id
         required: true
+      query:
+        description: Company or symbol text
+        required: false
+        default: ""
+      min_volume:
+        description: Minimum volume
+        required: false
+        default: ""
+      min_close:
+        description: Minimum close
+        required: false
+        default: ""
+      max_close:
+        description: Maximum close
+        required: false
+        default: ""
+      listed_after:
+        description: Listed after YYYY-MM-DD
+        required: false
+        default: ""
+      listed_before:
+        description: Listed before YYYY-MM-DD
+        required: false
+        default: ""
 
 run-name: "NSE range ${{ inputs.start }} to ${{ inputs.end }} ${{ inputs.request_id }}"
 
@@ -34,16 +58,38 @@ jobs:
       - name: Install dependencies
         run: pip install -r backend/requirements.txt
       - name: Fetch NSE range
-        run: python backend/nse_daily.py --start "${{ inputs.start }}" --end "${{ inputs.end }}" --out ./output --skip-frontend --delay 0.15
+        env:
+          START: ${{ inputs.start }}
+          END: ${{ inputs.end }}
+          QUERY: ${{ inputs.query }}
+          MIN_VOLUME: ${{ inputs.min_volume }}
+          MIN_CLOSE: ${{ inputs.min_close }}
+          MAX_CLOSE: ${{ inputs.max_close }}
+          LISTED_AFTER: ${{ inputs.listed_after }}
+          LISTED_BEFORE: ${{ inputs.listed_before }}
+        run: |
+          python backend/nse_daily.py \
+            --start "$START" \
+            --end "$END" \
+            --query "$QUERY" \
+            --min-volume "$MIN_VOLUME" \
+            --min-close "$MIN_CLOSE" \
+            --max-close "$MAX_CLOSE" \
+            --listed-after "$LISTED_AFTER" \
+            --listed-before "$LISTED_BEFORE" \
+            --out ./output \
+            --skip-frontend \
+            --delay 0.15
       - name: Publish CSV
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          START: ${{ inputs.start }}
+          END: ${{ inputs.end }}
+          REQUEST_ID: ${{ inputs.request_id }}
         run: |
-          START="${{ inputs.start }}"
-          END="${{ inputs.end }}"
           YEAR="${START:0:4}"
           SRC="output/nse_daily_${YEAR}.csv"
-          DEST="nse_daily_${START}_to_${END}.csv"
+          DEST="nse_daily_${START}_to_${END}_${REQUEST_ID}.csv"
           cp "$SRC" "$DEST"
           TAG=on-demand
           if gh release view "$TAG" >/dev/null 2>&1; then

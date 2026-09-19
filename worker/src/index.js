@@ -21,6 +21,30 @@ function dayCount(start, end) {
   return Math.floor((b - a) / 86400000) + 1;
 }
 
+function optionalIso(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  return validIso(text) ? text : "";
+}
+
+function optionalNumber(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  if (!/^\d+(\.\d+)?$/.test(text)) return "";
+  return text.slice(0, 16);
+}
+
+function optionalQuery(value) {
+  return String(value || "")
+    .replace(/[^\w\s.,&+/-]/g, " ")
+    .trim()
+    .slice(0, 80);
+}
+
+function csvName(start, end, requestId) {
+  return `nse_daily_${start}_to_${end}_${requestId}.csv`;
+}
+
 async function gh(env, path, init = {}) {
   const response = await fetch(`https://api.github.com${path}`, {
     ...init,
@@ -74,11 +98,22 @@ export default {
       const days = dayCount(start, end);
       if (days > 366) return json({ error: "Range cannot exceed 366 days" }, 400);
       const requestId = crypto.randomUUID();
+      const inputs = {
+        start,
+        end,
+        request_id: requestId,
+        query: optionalQuery(payload.query),
+        min_volume: optionalNumber(payload.minVolume),
+        min_close: optionalNumber(payload.minClose),
+        max_close: optionalNumber(payload.maxClose),
+        listed_after: optionalIso(payload.listedAfter),
+        listed_before: optionalIso(payload.listedBefore),
+      };
       await gh(env, `/repos/${env.GITHUB_REPO}/actions/workflows/fetch-range.yml/dispatches`, {
         method: "POST",
         body: JSON.stringify({
           ref: "main",
-          inputs: { start, end, request_id: requestId },
+          inputs,
         }),
       });
       return json({ requestId, start, end, days, status: "queued" }, 202);
@@ -109,7 +144,7 @@ export default {
       }
       const start = url.searchParams.get("start");
       const end = url.searchParams.get("end");
-      const fileName = `nse_daily_${start}_to_${end}.csv`;
+      const fileName = csvName(start, end, requestId);
       const downloadUrl = `https://github.com/${env.GITHUB_REPO}/releases/download/on-demand/${fileName}`;
       return json({
         requestId,

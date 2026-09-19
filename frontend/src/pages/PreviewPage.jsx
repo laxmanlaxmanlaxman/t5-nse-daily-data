@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
+import FilterBar from "../components/FilterBar.jsx";
 import { formatNumber, useNseData } from "../data";
+import { applyRowFilters, EMPTY_FILTERS } from "../filters";
 
 const COLUMNS = [
   "Company",
@@ -16,15 +18,10 @@ const COLUMNS = [
 
 export default function PreviewPage() {
   const { rows, manifest, loading, error } = useNseData();
-  const [query, setQuery] = useState("");
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [showMore, setShowMore] = useState(false);
 
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return rows;
-    return rows.filter((row) =>
-      `${row.Company} ${row.Symbol}`.toLowerCase().includes(needle)
-    );
-  }, [rows, query]);
+  const filtered = useMemo(() => applyRowFilters(rows, filters), [rows, filters]);
 
   return (
     <section>
@@ -37,13 +34,13 @@ export default function PreviewPage() {
               : "Run the Python pipeline to populate this table."}
           </p>
         </div>
-        <input
-          type="search"
-          placeholder="Search company or symbol"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
       </div>
+      <FilterBar
+        filters={filters}
+        onChange={setFilters}
+        showMore={showMore}
+        onToggleMore={() => setShowMore((value) => !value)}
+      />
       {loading && <p className="note">Loading table…</p>}
       {error && <p className="error">{error}</p>}
       {!loading && !rows.length && (
@@ -77,6 +74,9 @@ export default function PreviewPage() {
             </tbody>
           </table>
         </div>
+      )}
+      {!loading && rows.length > 0 && filtered.length === 0 && (
+        <p className="note">No rows match these filters.</p>
       )}
     </section>
   );

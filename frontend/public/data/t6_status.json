@@ -1,0 +1,19 @@
+{
+  "task": "T6",
+  "status": "pending",
+  "mode": "background",
+  "generatedAt": null,
+  "symbolsAttempted": 0,
+  "symbolsOk": 0,
+  "symbolsFailed": 0,
+  "newRows": 0,
+  "lastMinuteUtc": null,
+  "releaseTag": "t6-minute",
+  "fileName": null,
+  "period": "7d",
+  "interval": "1m",
+  "source": "Yahoo Finance via yfinance (.NS); ticker list from NSE EQUITY_L",
+  "note": "NSE does not publish 10 years of 1-minute bars for free. Yahoo Finance typically serves about 7 days of 1-minute data per request. This passive job collects that window for every EQ ticker each night and keeps only new minutes, so a forward archive grows over time. A full 10-year 1-minute backfill is not available from public free sources.",
+  "failedSymbols": [],
+  "disclaimer": "Minute bars are collected in the background from a public market-data source. They are not an official NSE 1-minute archive. Verify on nseindia.com before making decisions."
+}

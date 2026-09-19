@@ -1,11 +1,15 @@
 import { useMemo, useState } from "react";
+import FilterBar from "../components/FilterBar.jsx";
 import { API_BASE, downloadRange, toIsoDate } from "../nseClient";
+import { EMPTY_FILTERS } from "../filters";
 import { useNseData } from "../data";
 
 export default function ExportPage() {
   const today = toIsoDate(new Date());
   const [start, setStart] = useState("2026-01-01");
   const [end, setEnd] = useState(today);
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [showMore, setShowMore] = useState(false);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(null);
   const [message, setMessage] = useState("");
@@ -25,7 +29,7 @@ export default function ExportPage() {
     setBusy(true);
     setProgress({ status: "starting" });
     try {
-      const result = await downloadRange({ start, end, onProgress: setProgress });
+      const result = await downloadRange({ start, end, filters, onProgress: setProgress });
       window.location.assign(result.downloadUrl);
       setMessage(`Ready: ${result.fileName}`);
     } catch (err) {
@@ -47,9 +51,8 @@ export default function ExportPage() {
     <section>
       <h2>Download CSV</h2>
       <p className="lede">
-        Pick any date range. The site asks a free backend to pull official NSE
-        daily files for those days, then gives you a CSV. A year can take a
-        couple of minutes; a week is usually faster.
+        Pick any date range and optional company/symbol filters. The site asks a
+        free backend to pull official NSE daily files, then gives you a CSV.
       </p>
       {!API_BASE && (
         <p className="error">On-demand API is not configured yet.</p>
@@ -63,6 +66,12 @@ export default function ExportPage() {
           To
           <input type="date" value={end} max={today} onChange={(event) => setEnd(event.target.value)} required />
         </label>
+        <FilterBar
+          filters={filters}
+          onChange={setFilters}
+          showMore={showMore}
+          onToggleMore={() => setShowMore((value) => !value)}
+        />
         <div className="presets">
           <button type="button" onClick={() => { setStart("2026-01-01"); setEnd(today); }}>
             2026 to today
@@ -95,8 +104,8 @@ export default function ExportPage() {
       </form>
       {dayCount > 0 && (
         <p className="note">
-          {dayCount} calendar day{dayCount === 1 ? "" : "s"} selected. Weekends and
-          NSE holidays are skipped. Max 366 days.
+          {dayCount} calendar days selected. Weekends and NSE holidays are
+          skipped. Max 366 days.
         </p>
       )}
       {progress && <p className="note">{statusLabel}</p>}

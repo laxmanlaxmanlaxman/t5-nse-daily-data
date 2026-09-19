@@ -1,0 +1,55 @@
+name: T6 minute collector
+
+on:
+  schedule:
+    - cron: "0 18 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: t6-minute
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+      - name: Collect latest 1-minute bars
+        run: python backend/nse_minute.py --out ./output/t6 --frontend-dir ./frontend/public/data --status-in ./frontend/public/data/t6_status.json
+      - name: Commit T6 status for the UI
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/public/data/t6_status.json
+          if git diff --staged --quiet; then
+            echo "No T6 status changes"
+          else
+            git commit -m "Update T6 minute collector status"
+            git push
+          fi
+      - name: Publish minute CSV
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=t6-minute
+          shopt -s nullglob
+          ASSETS=(output/t6/nse_1m_*.csv output/t6/t6_status.json)
+          if [ ${#ASSETS[@]} -eq 0 ]; then
+            echo "No T6 files to upload"
+            exit 0
+          fi
+          NOTES="Passive T6 archive of the latest available 1-minute bars for NSE EQ tickers. Yahoo Finance typically provides about 7 days of 1-minute history per request; this job accumulates new minutes going forward. Not an official 10-year NSE minute archive."
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${ASSETS[@]}" --clobber
+          else
+            gh release create "$TAG" "${ASSETS[@]}" --title "T6 NSE minute data" --notes "$NOTES"
+          fi

@@ -14,13 +14,22 @@ async function readJson(response) {
   return body;
 }
 
-export async function startExport(start, end) {
+export async function startExport(start, end, filters = {}) {
   if (!API_BASE) throw new Error("API is not configured");
   return readJson(
     await fetch(`${API_BASE}/api/export`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ start, end }),
+      body: JSON.stringify({
+        start,
+        end,
+        query: filters.query || "",
+        minVolume: filters.minVolume || "",
+        minClose: filters.minClose || "",
+        maxClose: filters.maxClose || "",
+        listedAfter: filters.listedAfter || "",
+        listedBefore: filters.listedBefore || "",
+      }),
     })
   );
 }
@@ -30,8 +39,8 @@ export async function pollExport(requestId, start, end) {
   return readJson(await fetch(`${API_BASE}/api/export?${params}`));
 }
 
-export async function downloadRange({ start, end, onProgress }) {
-  const started = await startExport(start, end);
+export async function downloadRange({ start, end, filters, onProgress }) {
+  const started = await startExport(start, end, filters);
   onProgress?.({ status: "queued", requestId: started.requestId });
   const deadline = Date.now() + 15 * 60 * 1000;
   while (Date.now() < deadline) {
