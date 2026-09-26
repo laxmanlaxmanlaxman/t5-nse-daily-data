@@ -179,14 +179,16 @@ export async function streamFilteredCsv({
       }
       scanned += 1;
       const row = zipRow(headers, parseCsvLine(trimmed));
-      if (match && !match(row)) continue;
-      rows.push(row);
-      if (rows.length % 500 === 0) onProgress?.({ name, kept: rows.length, scanned });
-      if (rows.length >= limit) {
-        truncated = true;
-        await reader.cancel();
-        return { rows, truncated, scanned };
+      if (!match || match(row)) {
+        rows.push(row);
+        if (rows.length >= limit) {
+          truncated = true;
+          onProgress?.({ name, kept: rows.length, scanned });
+          await reader.cancel();
+          return { rows, truncated, scanned };
+        }
       }
+      if (scanned % 1500 === 0) onProgress?.({ name, kept: rows.length, scanned });
     }
     if (done) break;
   }

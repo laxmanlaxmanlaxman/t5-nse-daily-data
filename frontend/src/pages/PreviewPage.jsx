@@ -209,7 +209,9 @@ function MinutePreview() {
           match: (row) => rowMatchesFilters(row, filters),
           limit: TABLE_LIMIT - collected.length,
           onProgress: (info) =>
-            setProgress(`Reading ${file.label}… ${formatNumber(info.kept)} matching rows`),
+            setProgress(
+              `Reading ${file.label}… ${formatNumber(info.kept)} matching of ${formatNumber(info.scanned)} scanned`
+            ),
         });
         collected.push(...result.rows);
         if (result.truncated) setTruncated(true);
