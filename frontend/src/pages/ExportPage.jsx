@@ -2,11 +2,12 @@ import { useMemo, useState } from "react";
 import DatasetSwitch from "../components/DatasetSwitch.jsx";
 import FileTable from "../components/FileTable.jsx";
 import FilterBar from "../components/FilterBar.jsx";
+import Loader from "../components/Loader.jsx";
 import Tip from "../components/Tip.jsx";
 import { useNseData } from "../data";
 import { describeDailyFiles, describeMinuteFiles, useDataset } from "../dataset";
 import { EMPTY_FILTERS } from "../filters";
-import { API_BASE, downloadRange, toIsoDate } from "../nseClient";
+import { API_BASE, downloadRange, downloadUrls, toIsoDate } from "../nseClient";
 
 function DailyExport() {
   const today = toIsoDate(new Date());
@@ -116,7 +117,8 @@ function DailyExport() {
       {dayCount > 0 && (
         <p className="note">{dayCount} calendar days selected. Weekends and holidays are skipped. Max 366 days.</p>
       )}
-      {progress && <p className="note">{statusLabel}</p>}
+      {busy && <Loader label={statusLabel || "Preparing CSV…"} />}
+      {progress && !busy && <p className="note">{statusLabel}</p>}
       {message && <p className="status-pill ok">{message}</p>}
       {error && <p className="error">{error}</p>}
       <h3>Ready files</h3>
@@ -131,6 +133,9 @@ function MinuteExport() {
   const allFiles = describeMinuteFiles(t6Files);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState("");
+  const [error, setError] = useState("");
 
   const files = useMemo(() => {
     return allFiles.filter((file) => {
@@ -141,6 +146,22 @@ function MinuteExport() {
   }, [allFiles, start, end]);
 
   const latest = allFiles[0];
+
+  async function downloadAll() {
+    if (!files.length) return;
+    setError("");
+    setBusy(true);
+    try {
+      await downloadUrls(files, (info) =>
+        setProgress(`Starting download ${info.index} of ${info.total}: ${info.name}`)
+      );
+      setProgress("Downloads started. Your browser may ask to allow multiple files.");
+    } catch (err) {
+      setError(err.message || "Could not start downloads");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <>
@@ -171,15 +192,25 @@ function MinuteExport() {
           </Tip>
         </div>
       </form>
-      {latest && (
-        <div className="actions">
+      <div className="actions">
+        {latest && (
           <Tip text="Download the most recent 1-minute collection">
             <a className="button" href={latest.url}>
               Download latest collection
             </a>
           </Tip>
-        </div>
-      )}
+        )}
+        {files.length > 1 && (
+          <Tip text="Start a download for every file currently listed. Your browser may ask permission.">
+            <button className="button secondary" type="button" onClick={downloadAll} disabled={busy}>
+              {busy ? "Starting…" : `Download all ${files.length} CSVs`}
+            </button>
+          </Tip>
+        )}
+      </div>
+      {busy && <Loader label={progress || "Starting downloads…"} />}
+      {!busy && progress && <p className="note">{progress}</p>}
+      {error && <p className="error">{error}</p>}
       <FileTable files={files} empty="No 1-minute files match these dates yet." />
     </>
   );

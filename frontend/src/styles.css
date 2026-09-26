@@ -415,9 +415,12 @@ footer {
   z-index: 30;
 }
 
-.tip:hover .tip-bubble,
-.tip:focus-within .tip-bubble {
+.tip:hover .tip-bubble {
   opacity: 1;
+}
+
+.tip:active .tip-bubble {
+  opacity: 0;
 }
 
 .file-table {
@@ -442,6 +445,73 @@ summary {
   cursor: pointer;
   color: var(--muted);
   font-size: 13px;
+}
+
+.sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
+.sort-arrow {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+th.num .sort-btn {
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.file-table.has-check th:first-child,
+.file-table.has-check td:first-child {
+  width: 36px;
+}
+
+.loader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  margin: 12px 0;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.loader-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(244, 241, 234, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.loader-overlay .loader {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  padding: 12px 16px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 720px) {

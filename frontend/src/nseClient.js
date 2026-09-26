@@ -91,3 +91,124 @@ export function formatBytes(value) {
   if (num < 1024 * 1024) return `${Math.round(num / 1024)} KB`;
   return `${(num / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+function parseCsvLine(line) {
+  const out = [];
+  let cell = "";
+  let quoted = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const ch = line[i];
+    const next = line[i + 1];
+    if (quoted) {
+      if (ch === '"' && next === '"') {
+        cell += '"';
+        i += 1;
+      } else if (ch === '"') {
+        quoted = false;
+      } else {
+        cell += ch;
+      }
+    } else if (ch === '"') {
+      quoted = true;
+    } else if (ch === ",") {
+      out.push(cell);
+      cell = "";
+    } else {
+      cell += ch;
+    }
+  }
+  out.push(cell.replace(/\r$/, ""));
+  return out;
+}
+
+function zipRow(headers, values) {
+  const record = {};
+  headers.forEach((header, index) => {
+    record[header] = values[index] ?? "";
+  });
+  return record;
+}
+
+export async function streamFilteredCsv({
+  tag,
+  name,
+  source = "release",
+  match,
+  limit = 8000,
+  onProgress,
+  signal,
+}) {
+  if (!API_BASE) throw new Error("API is not configured");
+  const params = new URLSearchParams({ name, source });
+  if (tag) params.set("tag", tag);
+  const response = await fetch(`${API_BASE}/api/file?${params}`, { cache: "no-store", signal });
+  if (!response.ok) throw new Error(`Could not load ${name}`);
+  if (!response.body) {
+    const text = await response.text();
+    const rows = [];
+    const lines = text.split(/\n/);
+    const headers = parseCsvLine(lines[0] || "");
+    for (const line of lines.slice(1)) {
+      if (!line.trim()) continue;
+      const row = zipRow(headers, parseCsvLine(line));
+      if (match && !match(row)) continue;
+      rows.push(row);
+      if (rows.length >= limit) break;
+    }
+    return { rows, truncated: rows.length >= limit, scanned: lines.length - 1 };
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let headers = null;
+  const rows = [];
+  let scanned = 0;
+  let truncated = false;
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+    const parts = buffer.split("\n");
+    buffer = done ? "" : parts.pop() || "";
+    for (const line of parts) {
+      const trimmed = line.replace(/\r$/, "");
+      if (!trimmed) continue;
+      if (!headers) {
+        headers = parseCsvLine(trimmed);
+        continue;
+      }
+      scanned += 1;
+      const row = zipRow(headers, parseCsvLine(trimmed));
+      if (match && !match(row)) continue;
+      rows.push(row);
+      if (rows.length % 500 === 0) onProgress?.({ name, kept: rows.length, scanned });
+      if (rows.length >= limit) {
+        truncated = true;
+        await reader.cancel();
+        return { rows, truncated, scanned };
+      }
+    }
+    if (done) break;
+  }
+  if (buffer.trim() && headers) {
+    scanned += 1;
+    const row = zipRow(headers, parseCsvLine(buffer.replace(/\r$/, "")));
+    if (!match || match(row)) rows.push(row);
+  }
+  return { rows, truncated, scanned };
+}
+
+export async function downloadUrls(files, onProgress) {
+  for (let index = 0; index < files.length; index += 1) {
+    const file = files[index];
+    onProgress?.({ index: index + 1, total: files.length, name: file.label || file.name });
+    const link = document.createElement("a");
+    link.href = file.url;
+    link.download = file.name || "download.csv";
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    await new Promise((resolve) => setTimeout(resolve, 700));
+  }
+}

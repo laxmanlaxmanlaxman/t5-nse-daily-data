@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import DatasetSwitch from "../components/DatasetSwitch.jsx";
+import Loader from "../components/Loader.jsx";
 import Tip from "../components/Tip.jsx";
 import { formatNumber, useNseData } from "../data";
 import { formatNiceDate, statusClass, useDataset } from "../dataset";
@@ -17,7 +18,7 @@ export default function StatusPage() {
   const { manifest, t6, loading, error } = useNseData();
   const { isMinute } = useDataset();
 
-  if (loading) return <p className="note">Checking pipeline status…</p>;
+  if (loading) return <Loader label="Checking pipeline status…" />;
   if (error) return <p className="error">{error}</p>;
   if (!manifest) return <p className="note">No manifest found.</p>;
 

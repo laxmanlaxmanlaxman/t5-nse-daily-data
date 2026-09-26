@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import Loader from "../components/Loader.jsx";
 import { formatNumber, useNseData } from "../data";
 import { formatNiceDate, statusClass } from "../dataset";
 import Tip from "../components/Tip.jsx";
@@ -13,7 +14,7 @@ export default function HomePage() {
         Two matching tools for NSE EQ stocks: official daily bars, and a
         background 1-minute archive. Preview, export, or check status for either.
       </p>
-      {loading && <p className="note">Loading snapshot…</p>}
+      {loading && <Loader label="Loading snapshot…" />}
       {error && <p className="error">{error}</p>}
       <div className="product-grid">
         <article className="panel">

@@ -1,14 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
 import DatasetSwitch from "../components/DatasetSwitch.jsx";
 import FileTable from "../components/FileTable.jsx";
 import FilterBar from "../components/FilterBar.jsx";
+import Loader from "../components/Loader.jsx";
 import PriceTable from "../components/PriceTable.jsx";
 import Tip from "../components/Tip.jsx";
 import { formatNumber, parseCsv, useNseData } from "../data";
 import { describeMinuteFiles, formatNiceDate, useDataset } from "../dataset";
-import { applyRowFilters, EMPTY_FILTERS } from "../filters";
-import { API_BASE, loadRangeCsv, toIsoDate } from "../nseClient";
+import { applyRowFilters, EMPTY_FILTERS, rowMatchesFilters } from "../filters";
+import { API_BASE, loadRangeCsv, streamFilteredCsv, toIsoDate } from "../nseClient";
 
 const TABLE_LIMIT = 8000;
 const PREVIEW_MAX_DAYS = 31;
@@ -36,7 +36,6 @@ function DailyPreview() {
   const usingLatest = start === latestDate && end === latestDate;
   const sourceRows = loadedRows && loadedRange === `${start}|${end}` ? loadedRows : usingLatest ? latestRows : [];
   const filtered = useMemo(() => applyRowFilters(sourceRows, filters), [sourceRows, filters]);
-  const visible = filtered.slice(0, TABLE_LIMIT);
 
   const dayCount = useMemo(() => {
     if (!start || !end || start > end) return 0;
@@ -139,11 +138,12 @@ function DailyPreview() {
       {dayCount > 1 && (
         <p className="note">Longer ranges take a minute or two to fetch from NSE. Weekends and holidays are skipped.</p>
       )}
-      {progress && busy && <p className="note">{statusLabel}</p>}
+      {(busy || (loading && usingLatest && !sourceRows.length)) && (
+        <Loader label={busy ? statusLabel || "Loading table…" : "Loading latest session…"} />
+      )}
       {(error || loadError) && <p className="error">{error || loadError}</p>}
-      {loading && usingLatest && <p className="note">Loading table…</p>}
       {needsLoad && !busy && <p className="note">Click Load table to fetch this date range.</p>}
-      <PriceTable rows={visible} />
+      <PriceTable rows={filtered.slice(0, TABLE_LIMIT)} />
       {filtered.length > TABLE_LIMIT && (
         <p className="note">
           Showing the first {formatNumber(TABLE_LIMIT)} of {formatNumber(filtered.length)} matching rows.
@@ -158,31 +158,115 @@ function DailyPreview() {
 }
 
 function MinutePreview() {
-  const { t6, t6Files, loading } = useNseData();
+  const { t6Files, loading } = useNseData();
   const files = describeMinuteFiles(t6Files);
+  const [selected, setSelected] = useState([]);
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [showMore, setShowMore] = useState(false);
+  const [rows, setRows] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [truncated, setTruncated] = useState(false);
+  const primed = useRef(false);
+
+  useEffect(() => {
+    if (!files.length || primed.current) return;
+    setSelected([files[0].name]);
+    primed.current = true;
+  }, [files]);
+
+  const filtered = useMemo(() => applyRowFilters(rows, filters), [rows, filters]);
+  const chosen = files.filter((file) => selected.includes(file.name));
+
+  function toggle(name) {
+    setSelected((current) =>
+      current.includes(name) ? current.filter((item) => item !== name) : [...current, name]
+    );
+  }
+
+  async function loadPreview(event) {
+    event.preventDefault();
+    setLoadError("");
+    if (!chosen.length) {
+      setLoadError("Select at least one collection file.");
+      return;
+    }
+    setBusy(true);
+    setRows([]);
+    setTruncated(false);
+    const collected = [];
+    try {
+      for (const file of chosen) {
+        if (collected.length >= TABLE_LIMIT) {
+          setTruncated(true);
+          break;
+        }
+        setProgress(`Reading ${file.label}…`);
+        const result = await streamFilteredCsv({
+          tag: "t6-minute",
+          name: file.name,
+          match: (row) => rowMatchesFilters(row, filters),
+          limit: TABLE_LIMIT - collected.length,
+          onProgress: (info) =>
+            setProgress(`Reading ${file.label}… ${formatNumber(info.kept)} matching rows`),
+        });
+        collected.push(...result.rows);
+        if (result.truncated) setTruncated(true);
+      }
+      setRows(collected);
+      setProgress("");
+    } catch (err) {
+      setLoadError(err.message || "Could not load minute preview");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <>
       <p className="note">
-        1-minute files are large (often ~80 MB), so they are not opened in the
-        browser. This list is what has been collected so far. Download them on
-        Export.
+        Tick the collection file(s) to preview, add filters if you like, then Load
+        table. Large files are streamed; a company or symbol filter is much faster.
       </p>
-      {loading && <p className="note">Loading collection list…</p>}
-      {t6?.generatedAt && (
+      {loading && <Loader label="Loading collection list…" />}
+      <form onSubmit={loadPreview}>
+        <FilterBar
+          filters={filters}
+          onChange={setFilters}
+          showMore={showMore}
+          onToggleMore={() => setShowMore((value) => !value)}
+        />
+        <FileTable
+          files={files}
+          showDownload={false}
+          selectable
+          selected={selected}
+          onToggle={toggle}
+          onToggleAll={(on) => setSelected(on ? files.map((file) => file.name) : [])}
+          empty="No 1-minute files yet. The overnight job has not published any."
+        />
+        <div className="actions">
+          <Tip text="Read the selected files and show matching rows in the table">
+            <button className="button" type="submit" disabled={busy || !API_BASE || !chosen.length}>
+              {busy ? "Loading…" : "Load table"}
+            </button>
+          </Tip>
+        </div>
+      </form>
+      {busy && <Loader label={progress || "Reading minute files…"} />}
+      {loadError && <p className="error">{loadError}</p>}
+      {!busy && rows.length > 0 && (
         <p className="note">
-          Last run {formatNiceDate(t6.generatedAt)} · {formatNumber(t6.symbolsOk)} tickers ·{" "}
-          {formatNumber(t6.newRows)} new minute rows
+          {formatNumber(filtered.length)} matching rows from {chosen.length} file
+          {chosen.length === 1 ? "" : "s"}
+          {truncated ? ` (showing the first ${formatNumber(TABLE_LIMIT)})` : ""}
         </p>
       )}
-      <FileTable files={files} showDownload={false} empty="No 1-minute files yet. The overnight job has not published any." />
-      <div className="actions">
-        <Tip text="Go to Export to download these 1-minute CSVs">
-          <Link className="button" to="/export?set=minute">
-            Export CSV
-          </Link>
-        </Tip>
-      </div>
+      <PriceTable rows={filtered.slice(0, TABLE_LIMIT)} />
+      {!busy && rows.length > 0 && filtered.length === 0 && (
+        <p className="note">No rows match these filters. Load table again after changing filters if you need a full rescan.</p>
+      )}
     </>
   );
 }

@@ -86,3 +86,48 @@ export function describeDailyFiles({ latestHref, fullHref, monthly, latestDate }
   });
   return rows;
 }
+
+const NUMERIC_SORT = new Set(["Open", "High", "Low", "Close", "Volume", "size"]);
+
+export function nextSort(current, key) {
+  if (current.key !== key) return { key, dir: "asc" };
+  return { key, dir: current.dir === "asc" ? "desc" : "asc" };
+}
+
+export function sortMark(sort, key) {
+  if (sort?.key !== key) return "↕";
+  return sort.dir === "asc" ? "↑" : "↓";
+}
+
+export function sortRows(rows, sort) {
+  if (!sort?.key || !sort.dir) return rows;
+  const key = sort.key;
+  const dir = sort.dir === "desc" ? -1 : 1;
+  return [...rows].sort((a, b) => {
+    if (key === "iso" || key === "Date") {
+      return dir * String(a.iso || "").localeCompare(String(b.iso || ""));
+    }
+    if (key === "size") {
+      return dir * ((Number(a.size) || 0) - (Number(b.size) || 0));
+    }
+    const av = a[key];
+    const bv = b[key];
+    if (key === "date" || key === "Listing Date") {
+      const da = Date.parse(av || "") || 0;
+      const db = Date.parse(bv || "") || 0;
+      if (da !== db) return dir * (da - db);
+    }
+    if (NUMERIC_SORT.has(key)) {
+      const na = Number(av);
+      const nb = Number(bv);
+      if (Number.isNaN(na) && Number.isNaN(nb)) return 0;
+      if (Number.isNaN(na)) return 1;
+      if (Number.isNaN(nb)) return -1;
+      return dir * (na - nb);
+    }
+    return dir * String(av ?? "").localeCompare(String(bv ?? ""), "en-IN", {
+      numeric: true,
+      sensitivity: "base",
+    });
+  });
+}

@@ -1,6 +1,8 @@
-import { NavLink, Route, Routes } from "react-router-dom";
-import { DataProvider } from "./data";
+import { useEffect, useState } from "react";
+import { NavLink, Route, Routes, useLocation } from "react-router-dom";
+import { DataProvider, useNseData } from "./data";
 import { useDataset } from "./dataset";
+import { LoaderOverlay } from "./components/Loader.jsx";
 import Tip from "./components/Tip.jsx";
 import ExportPage from "./pages/ExportPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
@@ -32,30 +34,49 @@ function Nav() {
   );
 }
 
+function AppShell() {
+  const { loading } = useNseData();
+  const location = useLocation();
+  const [navBusy, setNavBusy] = useState(false);
+
+  useEffect(() => {
+    setNavBusy(true);
+    const timer = setTimeout(() => setNavBusy(false), 280);
+    return () => clearTimeout(timer);
+  }, [location.pathname, location.search]);
+
+  return (
+    <div className="shell">
+      {(loading || navBusy) && (
+        <LoaderOverlay label={loading ? "Loading latest data…" : "Opening page…"} />
+      )}
+      <header className="top">
+        <div>
+          <p className="kicker">NSE cash market</p>
+          <h1>Daily and 1-minute equity data</h1>
+        </div>
+        <Nav />
+      </header>
+      <main>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/preview" element={<PreviewPage />} />
+          <Route path="/export" element={<ExportPage />} />
+          <Route path="/status" element={<StatusPage />} />
+        </Routes>
+      </main>
+      <footer>
+        Daily bars from NSE public bhavcopy. Minute bars from a public market-data
+        source. Not investment advice.
+      </footer>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <DataProvider>
-      <div className="shell">
-        <header className="top">
-          <div>
-            <p className="kicker">NSE cash market</p>
-            <h1>Daily and 1-minute equity data</h1>
-          </div>
-          <Nav />
-        </header>
-        <main>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/preview" element={<PreviewPage />} />
-            <Route path="/export" element={<ExportPage />} />
-            <Route path="/status" element={<StatusPage />} />
-          </Routes>
-        </main>
-        <footer>
-          Daily bars from NSE public bhavcopy. Minute bars from a public market-data
-          source. Not investment advice.
-        </footer>
-      </div>
+      <AppShell />
     </DataProvider>
   );
 }
