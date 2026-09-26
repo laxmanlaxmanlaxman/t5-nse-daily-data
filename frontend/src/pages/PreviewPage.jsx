@@ -1,25 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import DatasetSwitch from "../components/DatasetSwitch.jsx";
+import FileTable from "../components/FileTable.jsx";
 import FilterBar from "../components/FilterBar.jsx";
+import PriceTable from "../components/PriceTable.jsx";
+import Tip from "../components/Tip.jsx";
 import { formatNumber, parseCsv, useNseData } from "../data";
+import { describeMinuteFiles, formatNiceDate, useDataset } from "../dataset";
 import { applyRowFilters, EMPTY_FILTERS } from "../filters";
 import { API_BASE, loadRangeCsv, toIsoDate } from "../nseClient";
 
-const COLUMNS = [
-  "Company",
-  "Symbol",
-  "Listing Date",
-  "Interval",
-  "Open",
-  "High",
-  "Low",
-  "Close",
-  "Volume",
-  "date",
-];
 const TABLE_LIMIT = 8000;
 const PREVIEW_MAX_DAYS = 31;
 
-export default function PreviewPage() {
+function DailyPreview() {
   const { rows: latestRows, manifest, loading, error } = useNseData();
   const today = toIsoDate(new Date());
   const latestDate = manifest?.latestDate || today;
@@ -84,22 +78,17 @@ export default function PreviewPage() {
   }[progress?.status] || progress?.status;
 
   const needsLoad = !usingLatest && loadedRange !== `${start}|${end}`;
-  const rangeLabel = start === end ? start : `${start} → ${end}`;
+  const rangeLabel = start === end ? formatNiceDate(start) : `${formatNiceDate(start)} → ${formatNiceDate(end)}`;
 
   return (
-    <section>
-      <div className="toolbar">
-        <div>
-          <h2>Preview daily data</h2>
-          <p className="note">
-            {sourceRows.length
-              ? `${formatNumber(filtered.length)} of ${formatNumber(sourceRows.length)} EQ rows for ${rangeLabel}`
-              : usingLatest
-                ? "Loading the latest trading day…"
-                : "Pick dates and click Load table. One session is about 2,600 EQ stocks, not the full year."}
-          </p>
-        </div>
-      </div>
+    <>
+      <p className="note">
+        {sourceRows.length
+          ? `${formatNumber(filtered.length)} of ${formatNumber(sourceRows.length)} EQ rows for ${rangeLabel}`
+          : usingLatest
+            ? "Loading the latest trading day…"
+            : "Pick dates and click Load table. One session is about 2,600 EQ stocks, not the full year."}
+      </p>
       <form className="preview-controls" onSubmit={loadPreview}>
         <label>
           From
@@ -110,30 +99,36 @@ export default function PreviewPage() {
           <input type="date" value={end} max={today} onChange={(event) => setEnd(event.target.value)} required />
         </label>
         <div className="presets">
-          <button
-            type="button"
-            onClick={() => {
-              setStart(latestDate);
-              setEnd(latestDate);
-            }}
-          >
-            Latest day
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const from = new Date(`${latestDate}T00:00:00`);
-              from.setDate(from.getDate() - 6);
-              setStart(toIsoDate(from));
-              setEnd(latestDate);
-            }}
-          >
-            Last 7 days
-          </button>
+          <Tip text="Show only the most recent NSE trading day">
+            <button
+              type="button"
+              onClick={() => {
+                setStart(latestDate);
+                setEnd(latestDate);
+              }}
+            >
+              Latest day
+            </button>
+          </Tip>
+          <Tip text="Load about one week of daily bars">
+            <button
+              type="button"
+              onClick={() => {
+                const from = new Date(`${latestDate}T00:00:00`);
+                from.setDate(from.getDate() - 6);
+                setStart(toIsoDate(from));
+                setEnd(latestDate);
+              }}
+            >
+              Last 7 days
+            </button>
+          </Tip>
         </div>
-        <button className="button" type="submit" disabled={busy || start > end || (!usingLatest && !API_BASE)}>
-          {busy ? "Loading…" : "Load table"}
-        </button>
+        <Tip text="Fetch this date range and show it in the table">
+          <button className="button" type="submit" disabled={busy || start > end || (!usingLatest && !API_BASE)}>
+            {busy ? "Loading…" : "Load table"}
+          </button>
+        </Tip>
       </form>
       <FilterBar
         filters={filters}
@@ -141,44 +136,14 @@ export default function PreviewPage() {
         showMore={showMore}
         onToggleMore={() => setShowMore((value) => !value)}
       />
-      {dayCount > 0 && (
-        <p className="note">
-          {dayCount} calendar days selected. Weekends and holidays are skipped.
-          {dayCount > 1 ? " Longer ranges take a minute or two to fetch from NSE." : ""}
-        </p>
+      {dayCount > 1 && (
+        <p className="note">Longer ranges take a minute or two to fetch from NSE. Weekends and holidays are skipped.</p>
       )}
       {progress && busy && <p className="note">{statusLabel}</p>}
       {(error || loadError) && <p className="error">{error || loadError}</p>}
       {loading && usingLatest && <p className="note">Loading table…</p>}
-      {needsLoad && !busy && (
-        <p className="note">Click Load table to fetch this date range from official NSE daily files.</p>
-      )}
-      {visible.length > 0 && (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                {COLUMNS.map((col) => (
-                  <th key={col}>{col}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map((row, index) => (
-                <tr key={`${row.Symbol}-${row.date}-${index}`}>
-                  {COLUMNS.map((col) => (
-                    <td key={col} className={["Open", "High", "Low", "Close", "Volume"].includes(col) ? "num" : ""}>
-                      {["Open", "High", "Low", "Close", "Volume"].includes(col)
-                        ? formatNumber(row[col])
-                        : row[col]}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {needsLoad && !busy && <p className="note">Click Load table to fetch this date range.</p>}
+      <PriceTable rows={visible} />
       {filtered.length > TABLE_LIMIT && (
         <p className="note">
           Showing the first {formatNumber(TABLE_LIMIT)} of {formatNumber(filtered.length)} matching rows.
@@ -188,6 +153,51 @@ export default function PreviewPage() {
       {!busy && sourceRows.length > 0 && filtered.length === 0 && (
         <p className="note">No rows match these filters.</p>
       )}
+    </>
+  );
+}
+
+function MinutePreview() {
+  const { t6, t6Files, loading } = useNseData();
+  const files = describeMinuteFiles(t6Files);
+
+  return (
+    <>
+      <p className="note">
+        1-minute files are large (often ~80 MB), so they are not opened in the
+        browser. This list is what has been collected so far. Download them on
+        Export.
+      </p>
+      {loading && <p className="note">Loading collection list…</p>}
+      {t6?.generatedAt && (
+        <p className="note">
+          Last run {formatNiceDate(t6.generatedAt)} · {formatNumber(t6.symbolsOk)} tickers ·{" "}
+          {formatNumber(t6.newRows)} new minute rows
+        </p>
+      )}
+      <FileTable files={files} showDownload={false} empty="No 1-minute files yet. The overnight job has not published any." />
+      <div className="actions">
+        <Tip text="Go to Export to download these 1-minute CSVs">
+          <Link className="button" to="/export?set=minute">
+            Export CSV
+          </Link>
+        </Tip>
+      </div>
+    </>
+  );
+}
+
+export default function PreviewPage() {
+  const { isMinute } = useDataset();
+  return (
+    <section>
+      <div className="toolbar">
+        <div>
+          <h2>Preview</h2>
+        </div>
+        <DatasetSwitch />
+      </div>
+      {isMinute ? <MinutePreview /> : <DailyPreview />}
     </section>
   );
 }

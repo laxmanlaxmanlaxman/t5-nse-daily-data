@@ -10,11 +10,17 @@ export default function FilterBar({ filters, onChange, showMore, onToggleMore })
         <input
           type="search"
           placeholder="RELIANCE, TCS, Infosys"
+          title="Type a company name or ticker. You can enter more than one."
           value={filters.query}
           onChange={(event) => set("query", event.target.value)}
         />
       </label>
-      <button type="button" className="more-toggle" onClick={onToggleMore}>
+      <button
+        type="button"
+        className="more-toggle"
+        title="Volume, price band, and listing-date filters"
+        onClick={onToggleMore}
+      >
         {showMore ? "Hide extra filters" : "More filters"}
       </button>
       {showMore && (

@@ -342,6 +342,108 @@ footer {
   border-top: 1px solid var(--line);
 }
 
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin: 12px 0 28px;
+}
+
+.panel {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  padding: 20px;
+}
+
+.panel.active {
+  border-color: var(--accent);
+}
+
+.panel h2,
+.panel h3 {
+  margin-bottom: 8px;
+}
+
+.panel .actions {
+  margin-bottom: 0;
+}
+
+.panel .status-pill {
+  margin: 8px 0 16px;
+}
+
+.switch {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.switch button {
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.switch button.on {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.tip {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.tip-bubble {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 12px;
+  line-height: 1.35;
+  padding: 6px 8px;
+  width: max-content;
+  max-width: 240px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.tip:hover .tip-bubble,
+.tip:focus-within .tip-bubble {
+  opacity: 1;
+}
+
+.file-table {
+  max-height: none;
+  margin: 16px 0 28px;
+}
+
+.file-table td:last-child {
+  white-space: nowrap;
+}
+
+.file-table .button {
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+details {
+  margin: 12px 0;
+}
+
+summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 @media (max-width: 720px) {
   .top,
   .toolbar {
@@ -351,5 +453,10 @@ footer {
 
   input[type="search"] {
     width: 100%;
+  }
+
+  .tip-bubble {
+    left: 0;
+    transform: none;
   }
 }

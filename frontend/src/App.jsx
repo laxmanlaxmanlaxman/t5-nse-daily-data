@@ -1,9 +1,36 @@
 import { NavLink, Route, Routes } from "react-router-dom";
 import { DataProvider } from "./data";
+import { useDataset } from "./dataset";
+import Tip from "./components/Tip.jsx";
 import ExportPage from "./pages/ExportPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import PreviewPage from "./pages/PreviewPage.jsx";
 import StatusPage from "./pages/StatusPage.jsx";
+
+function Nav() {
+  const { qs } = useDataset();
+  const previewTo = qs ? { pathname: "/preview", search: qs } : "/preview";
+  const exportTo = qs ? { pathname: "/export", search: qs } : "/export";
+  const statusTo = qs ? { pathname: "/status", search: qs } : "/status";
+  return (
+    <nav>
+      <Tip text="Home: daily and 1-minute snapshots">
+        <NavLink to="/" end>
+          Overview
+        </NavLink>
+      </Tip>
+      <Tip text="Look at prices in a table">
+        <NavLink to={previewTo}>Preview</NavLink>
+      </Tip>
+      <Tip text="Download CSV files">
+        <NavLink to={exportTo}>Export</NavLink>
+      </Tip>
+      <Tip text="See whether the last data jobs succeeded">
+        <NavLink to={statusTo}>Status</NavLink>
+      </Tip>
+    </nav>
+  );
+}
 
 export default function App() {
   return (
@@ -11,17 +38,10 @@ export default function App() {
       <div className="shell">
         <header className="top">
           <div>
-            <p className="kicker">T5 · NSE cash market</p>
-            <h1>Daily equity data, 2026</h1>
+            <p className="kicker">NSE cash market</p>
+            <h1>Daily and 1-minute equity data</h1>
           </div>
-          <nav>
-            <NavLink to="/" end>
-              Overview
-            </NavLink>
-            <NavLink to="/preview">Preview</NavLink>
-            <NavLink to="/export">Export</NavLink>
-            <NavLink to="/status">Status</NavLink>
-          </nav>
+          <Nav />
         </header>
         <main>
           <Routes>
@@ -32,7 +52,8 @@ export default function App() {
           </Routes>
         </main>
         <footer>
-          Sourced from NSE India public bhavcopy reports. Not investment advice.
+          Daily bars from NSE public bhavcopy. Minute bars from a public market-data
+          source. Not investment advice.
         </footer>
       </div>
     </DataProvider>
