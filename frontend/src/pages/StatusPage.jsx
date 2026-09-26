@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { formatBytes, releaseDownload } from "../nseClient";
 import { formatNumber, useNseData } from "../data";
 
 function statusClass(value) {
@@ -8,23 +8,7 @@ function statusClass(value) {
 }
 
 export default function StatusPage() {
-  const { manifest, loading, error, repo } = useNseData();
-  const [t6, setT6] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("./data/t6_status.json", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((payload) => {
-        if (!cancelled) setT6(payload);
-      })
-      .catch(() => {
-        if (!cancelled) setT6(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { manifest, t6, t6Files, loading, error, repo } = useNseData();
 
   if (loading) return <p className="note">Checking pipeline status…</p>;
   if (error) return <p className="error">{error}</p>;
@@ -46,11 +30,9 @@ export default function StatusPage() {
     error: "Last collection failed",
   }[t6?.status] || "Not started";
 
-  const t6FileHref =
-    repo && t6?.fileName
-      ? `https://github.com/${repo}/releases/download/t6-minute/${t6.fileName}`
-      : "";
+  const t6FileHref = t6?.fileName ? releaseDownload("t6-minute", t6.fileName) : "";
   const t6ReleaseHref = repo ? `https://github.com/${repo}/releases/tag/t6-minute` : "";
+  const csvFiles = (t6Files || []).slice().reverse();
 
   return (
     <section>
@@ -72,12 +54,12 @@ export default function StatusPage() {
           <dd>{formatNumber(manifest.tradingDays)}</dd>
         </div>
         <div>
-          <dt>Series</dt>
-          <dd>{(manifest.series || []).join(", ") || "EQ"}</dd>
+          <dt>Rows in full CSV</dt>
+          <dd>{formatNumber(manifest.rowCount)}</dd>
         </div>
         <div>
-          <dt>Release tag</dt>
-          <dd>{manifest.releaseTag || "nse-daily-2026"}</dd>
+          <dt>Latest session</dt>
+          <dd>{manifest.latestDate || "—"}</dd>
         </div>
         <div>
           <dt>GitHub repo</dt>
@@ -97,6 +79,14 @@ export default function StatusPage() {
 
       <h2 className="section-gap">T6 · Minute collector (background)</h2>
       <p className={`status-pill ${statusClass(t6?.status)}`}>{t6Label}</p>
+      <p className="lede">
+        Sandeep asked for 10 years of 1-minute data for every ticker. NSE does
+        not publish that for free. Each weeknight this job silently collects the
+        latest Yahoo Finance 1-minute window (about 7 days) for every NSE EQ
+        stock, keeps only new minutes, and stores a CSV. Over time the archive
+        grows forward. It cannot rebuild a 10-year history that public sources
+        do not provide.
+      </p>
       <p className="note">{t6?.note}</p>
       <dl className="meta">
         <div>
@@ -112,7 +102,7 @@ export default function StatusPage() {
           <dd>{formatNumber(t6?.symbolsOk)}</dd>
         </div>
         <div>
-          <dt>New minute rows</dt>
+          <dt>New minute rows this run</dt>
           <dd>{formatNumber(t6?.newRows)}</dd>
         </div>
         <div>
@@ -132,10 +122,26 @@ export default function StatusPage() {
         )}
         {t6ReleaseHref && (
           <a className="button secondary" href={t6ReleaseHref}>
-            T6 release archive
+            All T6 files on GitHub
           </a>
         )}
       </div>
+      {csvFiles.length > 0 && (
+        <>
+          <h3>Download by collection day</h3>
+          <p className="note">Each file is the new 1-minute bars collected that night.</p>
+          <ul className="download-list file-list">
+            {csvFiles.map((file) => (
+              <li key={file.name}>
+                <a href={file.url}>
+                  {file.name}
+                  <span className="note"> {formatBytes(file.size)}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       {t6?.failedSymbols?.length > 0 && (
         <>
           <h3>Sample failed tickers</h3>

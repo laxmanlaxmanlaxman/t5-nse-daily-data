@@ -45,6 +45,12 @@ function csvName(start, end, requestId) {
   return `nse_daily_${start}_to_${end}_${requestId}.csv`;
 }
 
+function safeName(value) {
+  const text = String(value || "");
+  if (!/^[\w.\-]+$/.test(text)) return "";
+  return text;
+}
+
 async function gh(env, path, init = {}) {
   const response = await fetch(`https://api.github.com${path}`, {
     ...init,
@@ -69,6 +75,46 @@ async function gh(env, path, init = {}) {
   return body;
 }
 
+async function repoJson(env, path) {
+  const body = await gh(env, `/repos/${env.GITHUB_REPO}/contents/${path}`);
+  const encoded = String(body.content || "").replace(/\n/g, "");
+  return JSON.parse(atob(encoded));
+}
+
+async function getRelease(env, tag) {
+  try {
+    return await gh(env, `/repos/${env.GITHUB_REPO}/releases/tags/${tag}`);
+  } catch {
+    return null;
+  }
+}
+
+function assetList(release, tag, repo) {
+  return (release?.assets || []).map((asset) => ({
+    name: asset.name,
+    size: asset.size,
+    updatedAt: asset.updated_at,
+    url: `https://github.com/${repo}/releases/download/${tag}/${asset.name}`,
+  }));
+}
+
+async function fetchAsset(env, tag, name) {
+  const release = await getRelease(env, tag);
+  const asset = (release?.assets || []).find((item) => item.name === name);
+  if (!asset) return null;
+  return fetch(asset.browser_download_url, {
+    headers: { "User-Agent": "nse-daily-api" },
+    redirect: "follow",
+  });
+}
+
+async function fetchRepoFile(env, path) {
+  return fetch(
+    `https://raw.githubusercontent.com/${env.GITHUB_REPO}/main/${path}?t=${Date.now()}`,
+    { headers: { "User-Agent": "nse-daily-api" } }
+  );
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") {
@@ -84,6 +130,58 @@ export default {
         service: "nse-daily-api",
         mode: "github-actions",
         source: "nsearchives.nseindia.com public bhavcopy",
+      });
+    }
+
+    if (request.method === "GET" && path === "/api/status") {
+      if (!env.GITHUB_TOKEN) return json({ error: "API is not configured" }, 500);
+      const [daily, t6, t6Release, dailyRelease] = await Promise.all([
+        repoJson(env, "frontend/public/data/manifest.json").catch(() => null),
+        repoJson(env, "frontend/public/data/t6_status.json").catch(() => null),
+        getRelease(env, "t6-minute"),
+        getRelease(env, "nse-daily-2026"),
+      ]);
+      const t6FromRelease = (t6Release?.assets || []).find((item) => item.name === "t6_status.json");
+      let t6Live = t6;
+      if (t6FromRelease) {
+        const statusRes = await fetchAsset(env, "t6-minute", "t6_status.json");
+        if (statusRes?.ok) {
+          t6Live = await statusRes.json().catch(() => t6);
+        }
+      }
+      return json({
+        daily,
+        t6: t6Live,
+        t6Files: assetList(t6Release, "t6-minute", env.GITHUB_REPO).filter((item) =>
+          item.name.endsWith(".csv")
+        ),
+        dailyFiles: assetList(dailyRelease, "nse-daily-2026", env.GITHUB_REPO),
+      });
+    }
+
+    if (request.method === "GET" && path === "/api/file") {
+      if (!env.GITHUB_TOKEN) return json({ error: "API is not configured" }, 500);
+      const tag = safeName(url.searchParams.get("tag"));
+      const name = safeName(url.searchParams.get("name"));
+      const source = url.searchParams.get("source") || "release";
+      let fileRes = null;
+      if (source === "repo" && name) {
+        fileRes = await fetchRepoFile(env, `frontend/public/data/${name}`);
+      } else if (tag && name) {
+        fileRes = await fetchAsset(env, tag, name);
+      }
+      if (!fileRes || !fileRes.ok) {
+        return json({ error: "File not found" }, 404);
+      }
+      return new Response(fileRes.body, {
+        status: 200,
+        headers: {
+          "Content-Type": name.endsWith(".json")
+            ? "application/json; charset=utf-8"
+            : "text/csv; charset=utf-8",
+          "Cache-Control": "no-store",
+          ...cors,
+        },
       });
     }
 

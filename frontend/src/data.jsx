@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { fetchFileText, fetchLiveStatus, GITHUB_REPO, releaseDownload } from "./nseClient";
 
 const DataContext = createContext(null);
 
@@ -63,30 +64,38 @@ export function parseCsv(text) {
   });
 }
 
-function releaseUrl(repo, fileName) {
-  if (!repo || !fileName) return "";
-  return `https://github.com/${repo}/releases/latest/download/${fileName}`;
-}
-
 export function DataProvider({ children }) {
   const [manifest, setManifest] = useState(null);
+  const [t6, setT6] = useState(null);
+  const [t6Files, setT6Files] = useState([]);
   const [rows, setRows] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const repo = import.meta.env.VITE_GITHUB_REPO || "";
+  const repo = GITHUB_REPO;
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
-        const manifestRes = await fetch("./data/manifest.json", { cache: "no-store" });
-        if (!manifestRes.ok) throw new Error("Could not load manifest.json");
-        const nextManifest = await manifestRes.json();
+        const live = await fetchLiveStatus().catch(() => null);
+        const localManifestRes = await fetch("./data/manifest.json", { cache: "no-store" });
+        const localManifest = localManifestRes.ok ? await localManifestRes.json() : null;
+        const nextManifest = live?.daily || localManifest;
+        if (!nextManifest) throw new Error("Could not load manifest.json");
+
         const latestName = nextManifest?.files?.latest || "nse_daily_2026_latest.csv";
-        const csvRes = await fetch(`./data/${latestName}`, { cache: "no-store" });
-        const csvText = csvRes.ok ? await csvRes.text() : "";
+        let csvText = "";
+        try {
+          csvText = await fetchFileText({ name: latestName, source: "repo" });
+        } catch {
+          const csvRes = await fetch(`./data/${latestName}`, { cache: "no-store" });
+          csvText = csvRes.ok ? await csvRes.text() : "";
+        }
+
         if (cancelled) return;
         setManifest(nextManifest);
+        setT6(live?.t6 || null);
+        setT6Files(live?.t6Files || []);
         setRows(csvText && csvText.includes("Symbol") ? parseCsv(csvText) : []);
       } catch (err) {
         if (!cancelled) setError(err.message || "Failed to load data");
@@ -107,28 +116,24 @@ export function DataProvider({ children }) {
       return {
         fileName,
         label: MONTH_NAMES[month - 1] || fileName,
-        href: repo ? releaseUrl(repo, fileName) : `./data/${fileName}`,
+        href: repo ? releaseDownload("nse-daily-2026", fileName) : `./data/${fileName}`,
       };
     });
     return {
       manifest,
+      t6,
+      t6Files,
       rows,
       error,
       loading,
       repo,
-      fullHref: files.full
-        ? repo
-          ? releaseUrl(repo, files.full)
-          : `./data/${files.full}`
-        : "",
+      fullHref: files.full ? releaseDownload("nse-daily-2026", files.full) : "",
       latestHref: files.latest
-        ? repo
-          ? releaseUrl(repo, files.latest)
-          : `./data/${files.latest}`
-        : "",
+        ? releaseDownload("nse-daily-2026", files.latest)
+        : "./data/nse_daily_2026_latest.csv",
       monthly,
     };
-  }, [manifest, rows, error, loading, repo]);
+  }, [manifest, t6, t6Files, rows, error, loading, repo]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }
