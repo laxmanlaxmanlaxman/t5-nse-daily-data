@@ -1,12 +1,12 @@
 {
   "year": 2026,
-  "generatedAt": "2026-09-25T18:05:01Z",
+  "generatedAt": "2026-09-26T09:47:42Z",
   "status": "ok",
   "series": [
     "EQ"
   ],
   "startDate": "2026-01-01",
-  "endDate": "2026-09-25",
+  "endDate": "2026-09-26",
   "latestDate": "2026-09-25",
   "tradingDays": 182,
   "tradingDayList": [
