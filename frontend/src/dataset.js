@@ -55,6 +55,23 @@ export function describeMinuteFiles(files) {
   }));
 }
 
+export function describeYearlyDailyFiles(historyFiles, dailyFiles) {
+  const byYear = new Map();
+  for (const file of [...(dailyFiles || []), ...(historyFiles || [])]) {
+    const year = file.name?.match(/^nse_daily_(\d{4})\.csv$/)?.[1];
+    if (!year || byYear.has(year)) continue;
+    byYear.set(year, {
+      ...file,
+      iso: `${year}-12-31`,
+      year,
+      label: year,
+      blurb: "All EQ stocks, daily OHLCV including volume",
+      sizeLabel: formatBytes(file.size),
+    });
+  }
+  return [...byYear.values()].sort((a, b) => String(b.year).localeCompare(String(a.year)));
+}
+
 export function describeDailyFiles({ latestHref, fullHref, monthly, latestDate }) {
   const rows = [];
   if (latestHref) {

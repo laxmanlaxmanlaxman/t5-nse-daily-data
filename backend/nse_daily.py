@@ -27,8 +27,20 @@ EQUITY_MASTER_URLS = (
     f"{ARCHIVES}/content/equities/EQUITY_L.csv",
     "https://archives.nseindia.com/content/equities/EQUITY_L.csv",
 )
-BHAVCOPY_URL = (
-    f"{ARCHIVES}/content/cm/BhavCopy_NSE_CM_0_0_0_{{yyyymmdd}}_F_0000.csv.zip"
+UDIFF_START = date(2024, 7, 8)
+MONTH_ABBR = (
+    "JAN",
+    "FEB",
+    "MAR",
+    "APR",
+    "MAY",
+    "JUN",
+    "JUL",
+    "AUG",
+    "SEP",
+    "OCT",
+    "NOV",
+    "DEC",
 )
 
 HEADERS = {
@@ -173,6 +185,26 @@ def unzip_csv(content: bytes) -> pd.DataFrame:
             return pd.read_csv(handle)
 
 
+def read_bhavcopy(content: bytes) -> pd.DataFrame:
+    if content[:2] == b"PK":
+        return unzip_csv(content)
+    return pd.read_csv(io.BytesIO(content))
+
+
+def bhavcopy_urls(day: date) -> list[str]:
+    ymd = day.strftime("%Y%m%d")
+    dmy = day.strftime("%d%m%Y")
+    mon = MONTH_ABBR[day.month - 1]
+    classic = f"cm{day.strftime('%d')}{mon}{day.year}bhav.csv.zip"
+    udiff = f"{ARCHIVES}/content/cm/BhavCopy_NSE_CM_0_0_0_{ymd}_F_0000.csv.zip"
+    historical = f"{ARCHIVES}/content/historical/EQUITIES/{day.year}/{mon}/{classic}"
+    archives = f"https://archives.nseindia.com/content/historical/EQUITIES/{day.year}/{mon}/{classic}"
+    full = f"{ARCHIVES}/products/content/sec_bhavdata_full_{dmy}.csv"
+    if day >= UDIFF_START:
+        return [udiff, historical, archives, full]
+    return [historical, archives, full, udiff]
+
+
 def normalize_bhavcopy(raw: pd.DataFrame, series: str) -> pd.DataFrame:
     raw.columns = [str(col).strip() for col in raw.columns]
     mapping = {
@@ -287,6 +319,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--delay", type=float, default=0.2)
     parser.add_argument("--cache-dir", type=Path, default=None)
     parser.add_argument("--skip-frontend", action="store_true")
+    parser.add_argument(
+        "--no-monthly",
+        action="store_true",
+        help="Skip writing month-by-month CSVs (used for multi-year history).",
+    )
     return parser.parse_args(argv)
 
 
@@ -313,11 +350,14 @@ def load_cached_or_fetch(
     cache_dir: Path | None,
 ) -> bytes | None:
     ymd = day.strftime("%Y%m%d")
-    cache_file = cache_dir / f"BhavCopy_NSE_CM_{ymd}.zip" if cache_dir else None
+    cache_file = cache_dir / f"BhavCopy_NSE_CM_{ymd}.bin" if cache_dir else None
     if cache_file and cache_file.exists():
         return cache_file.read_bytes()
-    url = BHAVCOPY_URL.format(yyyymmdd=ymd)
-    content = fetch_bytes(session, url)
+    content = None
+    for url in bhavcopy_urls(day):
+        content = fetch_bytes(session, url)
+        if content:
+            break
     if content and cache_file:
         cache_file.parent.mkdir(parents=True, exist_ok=True)
         cache_file.write_bytes(content)
@@ -342,6 +382,8 @@ def main(argv: list[str] | None = None) -> int:
     failed: list[str] = []
 
     for day in daterange(start, end):
+        if day.weekday() >= 5:
+            continue
         try:
             content = load_cached_or_fetch(session, day, cache_dir)
         except Exception as exc:  # noqa: BLE001 — keep going through the year
@@ -353,7 +395,7 @@ def main(argv: list[str] | None = None) -> int:
             log(f"  skip {day.isoformat()} (holiday/weekend)")
             continue
         try:
-            raw = unzip_csv(content)
+            raw = read_bhavcopy(content)
             day_frame = normalize_bhavcopy(raw, args.series)
             mapped = to_output(day_frame, master)
         except Exception as exc:  # noqa: BLE001
@@ -387,10 +429,11 @@ def main(argv: list[str] | None = None) -> int:
     write_csv(latest_path, latest)
 
     monthly_files: list[str] = []
-    for month in sorted(monthly):
-        name = f"nse_daily_{year}_{month:02d}.csv"
-        write_csv(out_dir / name, pd.concat(monthly[month], ignore_index=True))
-        monthly_files.append(name)
+    if not args.no_monthly:
+        for month in sorted(monthly):
+            name = f"nse_daily_{year}_{month:02d}.csv"
+            write_csv(out_dir / name, pd.concat(monthly[month], ignore_index=True))
+            monthly_files.append(name)
 
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     status = "ok" if not failed else "partial"

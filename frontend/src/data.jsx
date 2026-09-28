@@ -69,6 +69,7 @@ export function DataProvider({ children }) {
   const [t6, setT6] = useState(null);
   const [t6Files, setT6Files] = useState([]);
   const [dailyFiles, setDailyFiles] = useState([]);
+  const [historyFiles, setHistoryFiles] = useState([]);
   const [rows, setRows] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -98,6 +99,7 @@ export function DataProvider({ children }) {
         setT6(live?.t6 || null);
         setT6Files(live?.t6Files || []);
         setDailyFiles(live?.dailyFiles || []);
+        setHistoryFiles(live?.historyFiles || []);
         setRows(csvText && csvText.includes("Symbol") ? parseCsv(csvText) : []);
       } catch (err) {
         if (!cancelled) setError(err.message || "Failed to load data");
@@ -126,6 +128,7 @@ export function DataProvider({ children }) {
       t6,
       t6Files,
       dailyFiles,
+      historyFiles,
       rows,
       error,
       loading,
@@ -136,7 +139,7 @@ export function DataProvider({ children }) {
         : "./data/nse_daily_2026_latest.csv",
       monthly,
     };
-  }, [manifest, t6, t6Files, dailyFiles, rows, error, loading, repo]);
+  }, [manifest, t6, t6Files, dailyFiles, historyFiles, rows, error, loading, repo]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

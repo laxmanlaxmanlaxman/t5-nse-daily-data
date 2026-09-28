@@ -1,0 +1,64 @@
+name: Build NSE daily history
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_year:
+        description: First year (inclusive)
+        required: true
+        default: "2016"
+      end_year:
+        description: Last year (inclusive). Use 2025; 2026 is the nightly job.
+        required: true
+        default: "2025"
+      force:
+        description: Rebuild years that already exist (true/false)
+        required: false
+        default: "false"
+
+run-name: "NSE daily history ${{ inputs.start_year }}-${{ inputs.end_year }}"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nse-daily-history
+  cancel-in-progress: false
+
+jobs:
+  history:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+      - name: Build and publish yearly CSVs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          START_YEAR: ${{ inputs.start_year }}
+          END_YEAR: ${{ inputs.end_year }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          TAG=nse-daily-history
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title "NSE daily history" --notes "One official NSE EQ daily CSV per year, with volume. For personal analysis."
+          fi
+          for YEAR in $(seq "$START_YEAR" "$END_YEAR"); do
+            if [ "$FORCE" != "true" ] && gh release view "$TAG" --json assets --jq '.assets[].name' | grep -qx "nse_daily_${YEAR}.csv"; then
+              echo "Skip $YEAR (already on $TAG)"
+              continue
+            fi
+            echo "Building $YEAR"
+            python backend/nse_daily.py \
+              --year "$YEAR" \
+              --out ./output \
+              --skip-frontend \
+              --no-monthly \
+              --delay 0.12
+            gh release upload "$TAG" "output/nse_daily_${YEAR}.csv" --clobber
+          done

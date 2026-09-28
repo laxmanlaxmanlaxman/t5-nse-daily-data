@@ -135,11 +135,12 @@ export default {
 
     if (request.method === "GET" && path === "/api/status") {
       if (!env.GITHUB_TOKEN) return json({ error: "API is not configured" }, 500);
-      const [daily, t6, t6Release, dailyRelease] = await Promise.all([
+      const [daily, t6, t6Release, dailyRelease, historyRelease] = await Promise.all([
         repoJson(env, "frontend/public/data/manifest.json").catch(() => null),
         repoJson(env, "frontend/public/data/t6_status.json").catch(() => null),
         getRelease(env, "t6-minute"),
         getRelease(env, "nse-daily-2026"),
+        getRelease(env, "nse-daily-history"),
       ]);
       const t6FromRelease = (t6Release?.assets || []).find((item) => item.name === "t6_status.json");
       let t6Live = t6;
@@ -156,6 +157,9 @@ export default {
           item.name.endsWith(".csv")
         ),
         dailyFiles: assetList(dailyRelease, "nse-daily-2026", env.GITHUB_REPO),
+        historyFiles: assetList(historyRelease, "nse-daily-history", env.GITHUB_REPO).filter((item) =>
+          /^nse_daily_\d{4}\.csv$/.test(item.name)
+        ),
       });
     }
 

@@ -2,9 +2,11 @@
 
 Live site: https://laxmanlaxmanlaxman.github.io/t5-nse-daily-data/
 
-Sandeep picks a **date range** on Export, optionally filters by company or symbol, and can open **More filters** (min volume, min/max close, listing date). A free Cloudflare Worker starts a GitHub Action, which downloads official NSE bhavcopy files and publishes a CSV. Closing your PC does not take this down.
+Sandeep’s main need is **last ~10 years of daily bars for all EQ stocks, with volume**. On **Export → Daily**, download one CSV per year (or all years at once). Columns include `Interval` (`daily`) and `Volume`. Keep the yearly files separate, or concat them.
 
-**T6** is a separate background job. NSE does not publish 10 years of 1-minute bars for free. Each weeknight GitHub Actions pulls the latest Yahoo Finance 1-minute window (about 7 days) for every EQ ticker and keeps only new minutes. The archive grows going forward. Download files on the Status page or from the `t6-minute` GitHub Release.
+**1-minute for 10 years is not available from free public sources.** NSE does not publish it. Yahoo Finance only serves about 7 days of 1-minute bars per request. T6 collects that window overnight so a forward archive grows; it cannot backfill a decade. Use Daily for historical analysis.
+
+On-demand custom daily ranges are still limited to **366 days**. Longer history uses the yearly files.
 
 Columns: `Company`, `Symbol`, `Listing Date`, `Interval`, `Open`, `High`, `Low`, `Close`, `Volume`, `date`.
 

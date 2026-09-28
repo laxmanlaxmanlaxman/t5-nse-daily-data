@@ -5,7 +5,7 @@ import FilterBar from "../components/FilterBar.jsx";
 import Loader from "../components/Loader.jsx";
 import Tip from "../components/Tip.jsx";
 import { useNseData } from "../data";
-import { describeDailyFiles, describeMinuteFiles, useDataset } from "../dataset";
+import { describeDailyFiles, describeMinuteFiles, describeYearlyDailyFiles, useDataset } from "../dataset";
 import { EMPTY_FILTERS } from "../filters";
 import { API_BASE, downloadRange, downloadUrls, toIsoDate } from "../nseClient";
 
@@ -19,13 +19,16 @@ function DailyExport() {
   const [progress, setProgress] = useState(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const { latestHref, fullHref, monthly, manifest } = useNseData();
+  const [historyBusy, setHistoryBusy] = useState(false);
+  const [historyProgress, setHistoryProgress] = useState("");
+  const { latestHref, fullHref, monthly, manifest, historyFiles, dailyFiles } = useNseData();
   const readyFiles = describeDailyFiles({
     latestHref,
     fullHref,
     monthly,
     latestDate: manifest?.latestDate,
   });
+  const yearlyFiles = describeYearlyDailyFiles(historyFiles, dailyFiles);
 
   const dayCount = useMemo(() => {
     if (!start || !end || start > end) return 0;
@@ -49,6 +52,22 @@ function DailyExport() {
     }
   }
 
+  async function downloadYears() {
+    if (!yearlyFiles.length) return;
+    setError("");
+    setHistoryBusy(true);
+    try {
+      await downloadUrls(yearlyFiles, (info) =>
+        setHistoryProgress(`Starting download ${info.index} of ${info.total}: ${info.name}`)
+      );
+      setHistoryProgress("Downloads started. Your browser may ask to allow multiple files.");
+    } catch (err) {
+      setError(err.message || "Could not start yearly downloads");
+    } finally {
+      setHistoryBusy(false);
+    }
+  }
+
   const statusLabel = {
     starting: "Starting…",
     queued: "Queued on free GitHub runners…",
@@ -59,7 +78,35 @@ function DailyExport() {
 
   return (
     <>
-      <p className="note">Build a custom daily CSV, or download a file that is already ready.</p>
+      <p className="note">
+        For last-10-year personal analysis: download one CSV per year below (all
+        EQ stocks, Volume included, Interval = daily). You can keep them as
+        separate files or concat them. Custom ranges of up to 366 days are
+        further down.
+      </p>
+      <h3>Last 10 years</h3>
+      {yearlyFiles.length === 0 && (
+        <p className="note">
+          Yearly history files are still being built in the background. 2026 so
+          far is in Ready files below. Refresh this page later for 2016–2025.
+        </p>
+      )}
+      {yearlyFiles.length > 0 && (
+        <div className="actions">
+          <Tip text="Start a download for every yearly CSV currently listed. Your browser may ask permission.">
+            <button className="button" type="button" onClick={downloadYears} disabled={historyBusy}>
+              {historyBusy ? "Starting…" : `Download all ${yearlyFiles.length} yearly CSVs`}
+            </button>
+          </Tip>
+        </div>
+      )}
+      {historyBusy && <Loader label={historyProgress || "Starting yearly downloads…"} />}
+      {!historyBusy && historyProgress && <p className="note">{historyProgress}</p>}
+      {yearlyFiles.length > 0 && (
+        <FileTable files={yearlyFiles} empty="Yearly history files are not published yet." />
+      )}
+      <h3>Custom date range</h3>
+      <p className="note">Build a custom daily CSV, or download a 2026 file that is already ready.</p>
       {!API_BASE && <p className="error">On-demand API is not configured yet.</p>}
       <form className="range-form" onSubmit={runExport}>
         <label>
@@ -166,8 +213,9 @@ function MinuteExport() {
   return (
     <>
       <p className="note">
-        Each row is one overnight collection. Files are large, so they download
-        directly rather than opening in the browser.
+        10 years of 1-minute history is not published for free. These files are
+        the archive collected so far, going forward from late September 2026.
+        For last-10-year analysis, use Daily (one CSV per year, with volume).
       </p>
       <form className="preview-controls" onSubmit={(event) => event.preventDefault()}>
         <label>

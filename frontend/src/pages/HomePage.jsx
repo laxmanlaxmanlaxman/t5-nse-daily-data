@@ -20,7 +20,10 @@ export default function HomePage() {
         <article className="panel">
           <p className="kicker">T5</p>
           <h2>Daily</h2>
-          <p className="note">Official NSE bhavcopy. One row per stock per trading day.</p>
+          <p className="note">
+            Official NSE bhavcopy. Last ~10 years as one CSV per year on Export
+            (all stocks, with volume).
+          </p>
           <p className={`status-pill ${statusClass(manifest?.status)}`}>
             {dailyReady ? `Latest session ${formatNiceDate(manifest.latestDate)}` : "Waiting for data"}
           </p>
@@ -55,7 +58,10 @@ export default function HomePage() {
         <article className="panel">
           <p className="kicker">T6</p>
           <h2>1-minute</h2>
-          <p className="note">Collected overnight. Grows forward; not a 10-year official archive.</p>
+          <p className="note">
+            Collected overnight from a public source. Grows forward; not a
+            10-year 1-minute archive.
+          </p>
           <p className={`status-pill ${statusClass(t6?.status)}`}>
             {t6?.generatedAt
               ? `Last collection ${formatNiceDate(t6.generatedAt)}`

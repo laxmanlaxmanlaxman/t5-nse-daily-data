@@ -110,10 +110,11 @@ export default function StatusPage() {
           <details>
             <summary>Why not 10 years of 1-minute data?</summary>
             <p className="note">
-              NSE does not publish that for free. Yahoo typically serves about 7
-              days of 1-minute bars per request. This job collects that window
-              every weeknight and keeps new minutes, so the archive grows
-              forward.
+              NSE does not publish 10 years of 1-minute bars for free. Yahoo
+              typically serves about 7 days of 1-minute bars per request. This
+              job collects that window every weeknight and keeps new minutes, so
+              the archive grows forward. For last-10-year analysis, download
+              Daily yearly CSVs on Export.
             </p>
           </details>
           {t6?.failedSymbols?.length > 0 && (
