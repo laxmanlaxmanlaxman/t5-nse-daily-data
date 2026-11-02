@@ -1,14 +1,14 @@
 {
   "year": 2026,
-  "generatedAt": "2026-10-30T18:49:49Z",
+  "generatedAt": "2026-11-02T22:29:16Z",
   "status": "ok",
   "series": [
     "EQ"
   ],
   "startDate": "2026-01-01",
-  "endDate": "2026-10-30",
-  "latestDate": "2026-10-30",
-  "tradingDays": 217,
+  "endDate": "2026-11-02",
+  "latestDate": "2026-11-02",
+  "tradingDays": 218,
   "tradingDayList": [
     "2026-01-01",
     "2026-01-02",
@@ -226,10 +226,11 @@
     "2026-10-27",
     "2026-10-28",
     "2026-10-29",
-    "2026-10-30"
+    "2026-10-30",
+    "2026-11-02"
   ],
-  "rowCount": 539448,
-  "latestRowCount": 2703,
+  "rowCount": 542162,
+  "latestRowCount": 2714,
   "failedDays": [],
   "releaseTag": "nse-daily-2026",
   "files": {
@@ -245,7 +246,8 @@
       "nse_daily_2026_07.csv",
       "nse_daily_2026_08.csv",
       "nse_daily_2026_09.csv",
-      "nse_daily_2026_10.csv"
+      "nse_daily_2026_10.csv",
+      "nse_daily_2026_11.csv"
     ]
   },
   "disclaimer": "Data is sourced from NSE India public reports. Verify figures on nseindia.com before making decisions."
