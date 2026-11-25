@@ -1,14 +1,14 @@
 {
   "year": 2026,
-  "generatedAt": "2026-11-24T23:15:49Z",
+  "generatedAt": "2026-11-25T22:43:44Z",
   "status": "ok",
   "series": [
     "EQ"
   ],
   "startDate": "2026-01-01",
-  "endDate": "2026-11-24",
-  "latestDate": "2026-11-24",
-  "tradingDays": 234,
+  "endDate": "2026-11-25",
+  "latestDate": "2026-11-25",
+  "tradingDays": 235,
   "tradingDayList": [
     "2026-01-01",
     "2026-01-02",
@@ -243,10 +243,11 @@
     "2026-11-19",
     "2026-11-20",
     "2026-11-23",
-    "2026-11-24"
+    "2026-11-24",
+    "2026-11-25"
   ],
-  "rowCount": 586201,
-  "latestRowCount": 0,
+  "rowCount": 588975,
+  "latestRowCount": 2774,
   "failedDays": [],
   "releaseTag": "nse-daily-2026",
   "files": {
